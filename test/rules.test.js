@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
+import { OPENING } from '../src/scenes.js'
 import {
   createState,
   currentTargets,
@@ -14,8 +15,8 @@ import {
   tick,
 } from '../src/logic.js'
 
-function settle(state) {
-  for (let i = 0; i < 20; i += 1) tick(state, 0.05)
+function ticks(state, frames) {
+  for (let i = 0; i < frames; i += 1) tick(state, 0.05)
 }
 
 function drag(state, x, y) {
@@ -37,9 +38,18 @@ function drag(state, x, y) {
   pointerUp(state, x, y, id)
 }
 
+function fling(state, x, y) {
+  drag(state, x, y)
+  ticks(state, 28)
+}
+
 describe('Fist Rounds rules', () => {
   it('has no score', () => {
     const state = createState(390, 844)
+    startGame(state)
+    assert.equal(state.score, undefined)
+    assert.equal(state.points, undefined)
+    fling(state, state.w * 0.5, state.h * 0.48)
     assert.equal(state.score, undefined)
     assert.equal(state.points, undefined)
   })
@@ -49,9 +59,47 @@ describe('Fist Rounds rules', () => {
     startGame(state)
     pointerDown(state, state.fist.x, state.fist.y, 1, 0)
     pointerUp(state, state.fist.x + 4, state.fist.y + 2, 1)
+    assert.equal(state.fist.phase, 'ready')
     assert.equal(state.scene, 'dance')
     assert.equal(state.guy.hop, null)
-    assert.equal(state.pendingScene, null)
+    assert.equal(state.pending, null)
+  })
+
+  it('cocks back, then hits hard enough to shove him', () => {
+    const state = createState(390, 844)
+    startGame(state)
+    const dancer = currentTargets(state)[0]
+    drag(state, dancer.x, dancer.y)
+    const commitX = state.fist.commitX
+    const commitY = state.fist.commitY
+    let cocked = 0
+    for (let i = 0; i < 14 && state.fist.phase === 'windup'; i += 1) {
+      tick(state, 0.05)
+      cocked = Math.max(cocked, Math.hypot(state.fist.x - commitX, state.fist.y - commitY))
+    }
+    assert.ok(cocked > 50, `cocked ${cocked}`)
+    let reacted = false
+    for (let i = 0; i < 24 && state.scene === 'dance'; i += 1) {
+      tick(state, 0.05)
+      if (state.fist.phase === 'impact' && state.guy.react > 0.45 && state.shake > 0.45) reacted = true
+    }
+    assert.equal(reacted, true)
+    assert.equal(state.score, undefined)
+  })
+
+  it('winds up before a fling becomes a hit', () => {
+    const state = createState(390, 844)
+    startGame(state)
+    const dancer = currentTargets(state)[0]
+    drag(state, dancer.x, dancer.y)
+    assert.equal(state.fist.phase, 'windup')
+    assert.equal(state.scene, 'dance')
+    assert.equal(state.pending, null)
+    ticks(state, 3)
+    assert.ok(state.fist.phase === 'windup' || state.fist.phase === 'strike' || state.fist.phase === 'impact')
+    ticks(state, 25)
+    assert.equal(state.scene, 'mirror')
+    assert.equal(state.score, undefined)
   })
 
   it('keeps the dancer in place until a miss', () => {
@@ -59,7 +107,7 @@ describe('Fist Rounds rules', () => {
     startGame(state)
     const x = state.guy.x
     const y = state.guy.y
-    for (let i = 0; i < 40; i += 1) tick(state, 0.05)
+    ticks(state, 40)
     assert.equal(state.guy.x, x)
     assert.equal(state.guy.y, y)
     assert.equal(state.guy.hop, null)
@@ -72,57 +120,81 @@ describe('Fist Rounds rules', () => {
     const before = { x: state.guy.x, y: state.guy.y }
     drag(state, 24, state.fist.y)
     assert.equal(state.scene, 'dance')
+    ticks(state, 12)
+    assert.equal(state.scene, 'dance')
     assert.ok(state.guy.hop)
     assert.ok(state.popups.some((popup) => popup.text === 'hee hee!'))
-    settleHop(state)
+    ticks(state, 16)
     const moved = Math.hypot(state.guy.x - before.x, state.guy.y - before.y)
     assert.ok(moved > 8)
     assert.ok(Math.abs(state.guy.x - state.w * 0.5) <= 62)
     assert.ok(Math.abs(state.guy.y - state.h * 0.48) <= 26)
   })
 
-  it('advances dance, then mirror, then bed, then win', () => {
+  it('plays the opening trio and then two different sets', () => {
     const state = createState(390, 844)
     startGame(state)
-    assert.equal(state.scene, 'dance')
+    const seen = []
+    for (let round = 0; round < 9; round += 1) {
+      seen.push(state.scene)
+      const target = currentTargets(state).find((item) => item.id === 'guy' || item.id === 'lump')
+      fling(state, target.x, target.y)
+    }
+    assert.deepEqual(seen.slice(0, 3), ['dance', 'mirror', 'bed'])
+    const second = seen.slice(3, 6)
+    const third = seen.slice(6, 9)
+    assert.deepEqual(second, ['laundry', 'bike', 'window'])
+    assert.deepEqual(third, ['statue', 'couch', 'plant'])
+    assert.notDeepEqual(second, OPENING)
+    assert.notDeepEqual(third, OPENING)
+    assert.notDeepEqual(second, third)
+    assert.equal(state.scene, 'bubbles')
+    assert.equal(state.score, undefined)
+  })
 
-    const dancer = currentTargets(state)[0]
-    drag(state, dancer.x, dancer.y)
-    assert.equal(state.pendingScene, 'mirror')
-    assert.equal(state.scene, 'dance')
-    settle(state)
+  it('bonks the mirror and keeps going into new scenes instead of repeating the opening', () => {
+    const state = createState(390, 844)
+    startGame(state)
+    fling(state, currentTargets(state)[0].x, currentTargets(state)[0].y)
     assert.equal(state.scene, 'mirror')
 
     const reflection = reflectionPoint(state)
     const guyX = state.guy.x
     drag(state, reflection.x, reflection.y)
+    ticks(state, 16)
     assert.equal(state.scene, 'mirror')
-    assert.equal(state.pendingScene, null)
+    assert.equal(state.pending, null)
     assert.equal(state.guy.hop, null)
     assert.equal(state.guy.x, guyX)
     assert.ok(state.popups.some((popup) => popup.text === 'bonk!'))
-    settle(state)
+    ticks(state, 10)
 
     const real = currentTargets(state).find((target) => target.id === 'guy')
-    drag(state, real.x, real.y)
-    assert.equal(state.pendingScene, 'bed')
-    settle(state)
+    fling(state, real.x, real.y)
     assert.equal(state.scene, 'bed')
-    assert.equal(currentTargets(state).some((target) => target.id === 'reflection'), false)
+    fling(state, currentTargets(state)[0].x, currentTargets(state)[0].y)
+    assert.equal(state.scene, 'laundry')
+    assert.notEqual(state.scene, 'dance')
+  })
 
-    drag(state, 24, state.fist.y)
-    assert.equal(state.scene, 'bed')
-    assert.ok(state.guy.hop)
-    assert.ok(state.popups.some((popup) => popup.text === 'hee hee!'))
-    settleHop(state)
-
-    const lump = currentTargets(state)[0]
-    assert.equal(lump.id, 'lump')
-    drag(state, lump.x, lump.y)
-    assert.equal(state.pendingScene, 'win')
-    settle(state)
-    assert.equal(state.scene, 'win')
-    assert.equal(state.score, undefined)
+  it('reshuffles later scenes without returning to only dance, mirror, and bed', () => {
+    const state = createState(390, 844)
+    startGame(state)
+    const seen = []
+    for (let round = 0; round < 12; round += 1) {
+      seen.push(state.scene)
+      const target = currentTargets(state).find((item) => item.id === 'guy' || item.id === 'lump')
+      fling(state, target.x, target.y)
+    }
+    const extra = []
+    for (let round = 0; round < 3; round += 1) {
+      extra.push(state.scene)
+      const target = currentTargets(state).find((item) => item.id === 'guy' || item.id === 'lump')
+      fling(state, target.x, target.y)
+    }
+    assert.notDeepEqual(extra, OPENING)
+    assert.equal(extra.includes('dance') || extra.includes('mirror') || extra.includes('bed'), false)
+    assert.equal(new Set(seen.slice(3)).size >= 6, true)
   })
 
   it('keeps the reflection inside the mirror on a narrow phone', () => {
@@ -132,7 +204,7 @@ describe('Fist Rounds rules', () => {
       [430, 932],
     ]) {
       const state = createState(size[0], size[1])
-      enter(state, 'mirror')
+      enter(state, 'mirror', { setIndex: 0, scenePos: 1 })
       assert.ok(state.arena.minX < state.arena.maxX)
       assert.ok(state.arena.minY < state.arena.maxY)
       assert.ok(state.guy.x >= state.arena.minX - 0.5)
@@ -146,8 +218,16 @@ describe('Fist Rounds rules', () => {
       assert.ok(point.y + rad <= glass.y + glass.h + 1)
     }
   })
-})
 
-function settleHop(state) {
-  for (let i = 0; i < 20; i += 1) tick(state, 0.05)
-}
+  it('gives every later scene a place to stand on a phone', () => {
+    const state = createState(390, 844)
+    startGame(state)
+    for (let round = 0; round < 12; round += 1) {
+      assert.ok(state.arena.maxX > state.arena.minX, state.scene)
+      assert.ok(state.arena.maxY > state.arena.minY, state.scene)
+      const target = currentTargets(state).find((item) => item.id === 'guy' || item.id === 'lump')
+      assert.ok(target, state.scene)
+      fling(state, target.x, target.y)
+    }
+  })
+})

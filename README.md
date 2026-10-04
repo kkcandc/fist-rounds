@@ -1,12 +1,16 @@
 # Fist Rounds
 
-A silly cartoon game for Kenny and Cora. One little round guy, one big round fist, and three scenes. There is no score.
+A silly cartoon game for Kenny and Cora. One little round guy and one big round fist. There is no score.
 
-Drag the fist with a finger or a mouse. Tapping does not fly, and tapping the guy does not count. Let go after a real drag: if the fist reaches him, that is a punch. A miss makes him giggle and hop.
+Pull the fist back with a finger or a mouse, then fling it. A tap does not throw the punch. If the fist reaches him, he reacts and the next scene starts. A miss makes him giggle and hop.
 
-1. **Dance.** He dances in place. Punch him to continue.
-2. **Mirror.** Punch the real guy. Hitting the reflection makes a bonk and nothing else.
-3. **Bed.** He is a lump under a blanket. Punch the lump to win.
+The first three scenes are always:
+
+1. **Dance.** He dances in place.
+2. **Mirror.** Fling the fist at the real guy. The reflection only bonks.
+3. **Bed.** He is a lump under the blanket.
+
+After that, the scenes change. Laundry, a tiny bike, a window, a statue, a couch, a houseplant, bubbles, a picnic, and a hammock show up in new groups of three. When those run out, they come back in a different order. The opening three do not play on a loop.
 
 ## Run it
 

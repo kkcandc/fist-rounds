@@ -81,12 +81,12 @@ h1 {
 }
 
 #rounds li {
-  padding: 4px 10px;
+  padding: 4px 8px;
   border: 3px solid transparent;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.72);
   color: #7a5648;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
 }
 

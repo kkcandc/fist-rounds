@@ -10,6 +10,7 @@ import {
   pointerUp,
   reflectionPoint,
   resize,
+  roundPips,
   startGame,
   tick,
 } from './logic.js'
@@ -35,13 +36,8 @@ let audio
 const COPY = {
   title: {
     title: 'Fist Rounds',
-    copy: 'Drag the big round fist with your finger. A punch on the little guy starts the next scene.',
+    copy: 'Pull the fist back, then fling it. A punch sends him to a new scene.',
     action: 'Play',
-  },
-  win: {
-    title: 'You did it!',
-    copy: 'Dance, mirror, and bed. Three silly rounds for Kenny and Cora.',
-    action: 'Play again',
   },
 }
 
@@ -89,9 +85,15 @@ function blip(freq, dur, type, gainValue, when = 0) {
 
 function playSound(kind) {
   try {
-    if (kind === 'boop') {
-      blip(520, 0.12, 'sine', 0.05)
-      blip(780, 0.16, 'sine', 0.04, 0.08)
+    if (kind === 'windup') {
+      blip(180, 0.08, 'triangle', 0.03)
+    } else if (kind === 'swing') {
+      blip(240, 0.09, 'sawtooth', 0.02)
+      blip(420, 0.06, 'sine', 0.03, 0.04)
+    } else if (kind === 'boop') {
+      blip(110, 0.09, 'sine', 0.07)
+      blip(180, 0.08, 'triangle', 0.05, 0.02)
+      blip(640, 0.12, 'sine', 0.04, 0.05)
     } else if (kind === 'bonk') {
       blip(170, 0.12, 'triangle', 0.06)
       blip(90, 0.16, 'sine', 0.04, 0.03)
@@ -118,19 +120,24 @@ function flushEvents() {
   else if (latest === 'boop') live.textContent = 'Boop!'
   else live.textContent = hintFor(state.scene)
   for (const name of names) {
-    if (name === 'boop' || name === 'bonk' || name === 'giggle' || name === 'win') playSound(name)
+    if (name === 'boop' || name === 'bonk' || name === 'giggle' || name === 'swing' || name === 'windup') {
+      playSound(name)
+    }
   }
 }
 
 function syncHud() {
   hint.textContent = hintFor(state.scene)
   document.body.dataset.scene = state.scene
-  const order = { dance: 0, mirror: 1, bed: 2, win: 3 }
-  for (const item of rounds) {
-    const scene = item.dataset.scene
-    item.classList.toggle('on', scene === state.scene)
-    item.classList.toggle('done', order[state.scene] > order[scene])
-  }
+  const pips = roundPips(state)
+  rounds.forEach((item, index) => {
+    const pip = pips[index]
+    if (!pip) return
+    item.textContent = pip.label
+    item.dataset.scene = pip.id
+    item.classList.toggle('on', pip.mark === 'on')
+    item.classList.toggle('done', pip.mark === 'done')
+  })
   if (shown !== state.scene) {
     shown = state.scene
     const panel = COPY[state.scene]

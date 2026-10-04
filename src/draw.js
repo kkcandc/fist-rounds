@@ -1,4 +1,6 @@
 import { bedGeom, guyVisual, metrics, mirrorGeom, reflectionPoint, topInset } from './logic.js'
+import { drawBackdrop, drawDecoyProp, drawForeground } from './rooms.js'
+import { LUMP_SCENES, SCENES } from './scenes.js'
 
 const INK = '#3b2a24'
 const SKIN = '#ffc89a'
@@ -9,19 +11,55 @@ const HAIR = '#6b4428'
 export function draw(ctx, state) {
   const { w, h } = state
   ctx.clearRect(0, 0, w, h)
+  ctx.save()
+  if (state.shake > 0) {
+    const amp = state.shake * 8
+    ctx.translate(Math.sin(state.time * 70) * amp, Math.cos(state.time * 63) * amp)
+  }
   if (state.scene === 'mirror') drawMirrorRoom(ctx, state)
-  else if (state.scene === 'bed' || state.scene === 'win') drawBedroom(ctx, state)
-  else drawDanceRoom(ctx, state)
+  else if (state.scene === 'bed') drawBedroom(ctx, state)
+  else if (state.scene === 'dance' || state.scene === 'title') drawDanceRoom(ctx, state)
+  else drawBackdrop(ctx, state)
 
   if (state.scene === 'mirror') drawReflection(ctx, state)
+  drawDecoyProp(ctx, state)
 
-  if (state.scene === 'bed') drawLump(ctx, state)
-  else if (state.scene === 'win') drawCheer(ctx, state)
-  else drawGuy(ctx, state, guyVisual(state), { flip: false, tint: null })
+  const pose = SCENES[state.scene]?.pose || 'stand'
+  if (LUMP_SCENES.has(state.scene)) {
+    drawLump(ctx, state, lumpColor(state))
+    if (state.guy.react > 0.05) {
+      drawGuy(ctx, state, guyVisual(state), { flip: false, pose: 'cheer' })
+    }
+  } else if (state.scene !== 'mirror') {
+    drawGuy(ctx, state, guyVisual(state), { flip: false, pose })
+    if (pose === 'bubble') drawBubble(ctx, guyVisual(state), metrics(state).bubR)
+  } else {
+    drawGuy(ctx, state, guyVisual(state), { flip: false, pose: 'stand' })
+  }
 
-  if (state.scene === 'win') drawConfetti(ctx, state)
+  drawForeground(ctx, state)
+  drawBursts(ctx, state)
   drawFist(ctx, state)
   drawPopups(ctx, state)
+  ctx.restore()
+}
+
+function lumpColor(state) {
+  if (state.scene === 'laundry') return ['#ffb3c7', '#ffe08a', '#b7e38d'][state.look % 3]
+  if (state.scene === 'picnic') return state.look % 2 === 0 ? '#ff8b7b' : '#f2d15a'
+  if (state.scene === 'hammock') return '#8eb4f2'
+  return '#9ec0ff'
+}
+
+function drawBubble(ctx, point, radius) {
+  ctx.beginPath()
+  ctx.arc(point.x, point.y, radius * 2.15, 0, Math.PI * 2)
+  ctx.strokeStyle = 'rgba(255,255,255,0.95)'
+  ctx.lineWidth = 4
+  ctx.stroke()
+  ctx.strokeStyle = 'rgba(120, 190, 230, 0.8)'
+  ctx.lineWidth = 2
+  ctx.stroke()
 }
 
 function drawDanceRoom(ctx, state) {
@@ -265,7 +303,7 @@ function drawBed(ctx, state) {
   ctx.stroke()
 }
 
-function drawLump(ctx, state) {
+function drawLump(ctx, state, fill) {
   const m = metrics(state)
   const x = state.guy.x
   const y = state.guy.y
@@ -276,7 +314,7 @@ function drawLump(ctx, state) {
   const squash = state.guy.squash
   ctx.scale(1 + squash * 0.18, 1 - squash * 0.22)
   ellipse(ctx, 0, 4, m.lumpR * 1.45, m.lumpR * 1.05)
-  ctx.fillStyle = '#9ec0ff'
+  ctx.fillStyle = fill
   ctx.fill()
   ctx.lineWidth = 5
   ctx.strokeStyle = INK
@@ -288,29 +326,22 @@ function drawLump(ctx, state) {
   ctx.restore()
 }
 
-function drawCheer(ctx, state) {
-  const bed = bedGeom(state)
-  const visual = {
-    x: state.guy.x,
-    y: bed.blanket.y - metrics(state).bubR * 0.15 + Math.sin(state.winT * 8) * 6,
-  }
-  drawGuy(ctx, state, visual, { flip: false, tint: null, cheer: true })
-}
-
 function drawGuy(ctx, state, point, options) {
   const m = metrics(state)
-  const dancing = (state.scene === 'dance' || state.scene === 'title') && !options.ghost
+  const pose = options.pose || 'stand'
+  const dancing = (pose === 'dance' || state.scene === 'title') && !options.ghost
   const beat = state.time * 7
-  const arm = dancing ? Math.sin(beat) : options.cheer ? -1 : Math.sin(state.time * 2) * 0.25
-  const sway = dancing ? Math.sin(state.time * 3) * 0.08 : 0
+  const arm = dancing ? Math.sin(beat) : Math.sin(state.time * 2) * 0.25
+  const sway = dancing ? Math.sin(state.time * 3) * 0.08 : pose === 'couch' ? Math.sin(state.time * 6) * 0.05 : 0
   const squash = options.ghost ? 0 : state.guy.squash
   const giggle = state.guy.giggle > 0 && !options.ghost
+  const spin = Math.sin(Math.min(1, state.guy.react) * Math.PI) * state.guy.spin * 1.25
 
   ctx.save()
   ctx.translate(point.x, point.y)
-  ctx.rotate(sway + (giggle ? Math.sin(state.time * 26) * 0.06 : 0))
+  ctx.rotate(sway + spin + (giggle ? Math.sin(state.time * 26) * 0.06 : 0))
   ctx.scale(options.flip ? -1 : 1, 1)
-  ctx.scale(1 + squash * 0.22, 1 - squash * 0.32)
+  ctx.scale(1 + squash * 0.28, 1 - squash * 0.38)
 
   ctx.fillStyle = 'rgba(59, 42, 36, 0.13)'
   ellipse(ctx, 0, m.bubR * 0.95, m.bubR * 0.7, m.bubR * 0.18)
@@ -320,9 +351,20 @@ function drawGuy(ctx, state, point, options) {
   drawFoot(ctx, -m.bubR * 0.32, m.bubR * 0.78, foot)
   drawFoot(ctx, m.bubR * 0.28, m.bubR * 0.78, -foot)
 
-  const swing = dancing ? arm : Math.sin(state.time * 2) * 0.35
-  drawArm(ctx, -1, swing, m.bubR, Boolean(options.cheer))
-  drawArm(ctx, 1, swing, m.bubR, Boolean(options.cheer))
+  const swing = dancing ? arm : pose === 'bike' ? Math.sin(state.time * 8) * 0.2 : Math.sin(state.time * 2) * 0.35
+  if (pose === 'statue') {
+    drawArm(ctx, -1, 0, m.bubR, true)
+    drawArm(ctx, 1, 0.4, m.bubR, false)
+  } else if (pose === 'window' || pose === 'cheer' || options.cheer) {
+    drawArm(ctx, -1, 0, m.bubR, true)
+    drawArm(ctx, 1, 0, m.bubR, true)
+  } else if (pose === 'bike') {
+    drawArm(ctx, -1, 0.15, m.bubR, false)
+    drawArm(ctx, 1, 0.15, m.bubR, false)
+  } else {
+    drawArm(ctx, -1, swing, m.bubR, false)
+    drawArm(ctx, 1, swing, m.bubR, false)
+  }
 
   circle(ctx, 0, 0, m.bubR)
   ctx.fillStyle = SKIN
@@ -335,7 +377,8 @@ function drawGuy(ctx, state, point, options) {
   ctx.fillStyle = 'rgba(255,255,255,0.28)'
   ctx.fill()
 
-  drawHair(ctx, 0, -m.bubR * 0.92, m.bubR * 0.34)
+  if (pose === 'plant') drawLeaves(ctx, m.bubR)
+  else drawHair(ctx, 0, -m.bubR * 0.92, m.bubR * 0.34)
 
   ctx.fillStyle = BLUSH
   circle(ctx, -m.bubR * 0.42, m.bubR * 0.12, m.bubR * 0.14)
@@ -372,6 +415,20 @@ function drawGuy(ctx, state, point, options) {
     ctx.fill()
   }
   ctx.restore()
+}
+
+function drawLeaves(ctx, r) {
+  ctx.fillStyle = '#67b85a'
+  ellipse(ctx, 0, -r * 1.05, r * 0.55, r * 0.32)
+  ctx.fill()
+  ellipse(ctx, -r * 0.45, -r * 0.8, r * 0.32, r * 0.22)
+  ctx.fill()
+  ellipse(ctx, r * 0.42, -r * 0.78, r * 0.32, r * 0.22)
+  ctx.fill()
+  ctx.strokeStyle = INK
+  ctx.lineWidth = 3
+  ellipse(ctx, 0, -r * 1.05, r * 0.55, r * 0.32)
+  ctx.stroke()
 }
 
 function drawHair(ctx, x, y, r) {
@@ -438,24 +495,86 @@ function drawArm(ctx, side, swing, r, up) {
   ctx.stroke()
 }
 
+function drawBursts(ctx, state) {
+  for (const burst of state.bursts) {
+    const p = burst.t / 0.55
+    ctx.beginPath()
+    ctx.arc(burst.x, burst.y, 12 + p * 58, 0, Math.PI * 2)
+    ctx.strokeStyle = `rgba(255, 122, 89, ${1 - p})`
+    ctx.lineWidth = 6
+    ctx.stroke()
+    ctx.beginPath()
+    ctx.arc(burst.x, burst.y, 6 + p * 22, 0, Math.PI * 2)
+    ctx.fillStyle = `rgba(255, 236, 170, ${0.9 - p})`
+    ctx.fill()
+    ctx.strokeStyle = `rgba(59, 42, 36, ${0.7 * (1 - p)})`
+    ctx.lineWidth = 4
+    ctx.lineCap = 'round'
+    for (let i = 0; i < 6; i += 1) {
+      const angle = (i / 6) * Math.PI * 2 + 0.4
+      const inner = 16 + p * 10
+      const outer = 28 + p * 46
+      ctx.beginPath()
+      ctx.moveTo(burst.x + Math.cos(angle) * inner, burst.y + Math.sin(angle) * inner)
+      ctx.lineTo(burst.x + Math.cos(angle) * outer, burst.y + Math.sin(angle) * outer)
+      ctx.stroke()
+    }
+  }
+}
+
 function drawFist(ctx, state) {
   const m = metrics(state)
   const fist = state.fist
   const speed = Math.hypot(fist.vx, fist.vy)
-  let angle = -0.6
-  if (fist.dragging && speed > 0.05) angle = Math.atan2(fist.vy, fist.vx)
+  let angle = -Math.PI / 2
+  if (fist.phase === 'drag' && speed > 0.05) angle = Math.atan2(fist.vy, fist.vx)
+  if (fist.phase === 'windup' || fist.phase === 'strike' || fist.phase === 'impact' || fist.phase === 'bonk') {
+    angle = Math.atan2(fist.aimY, fist.aimX)
+  }
   const squash = fist.squash
+  const wind = fist.phase === 'windup' ? fist.squash : 0
+
+  if (fist.phase === 'drag') {
+    const stretch = Math.hypot(fist.fingerX - fist.x, fist.fingerY - fist.y)
+    ctx.strokeStyle = 'rgba(255, 122, 89, 0.85)'
+    ctx.lineWidth = 4 + Math.min(10, stretch / 18)
+    ctx.lineCap = 'round'
+    ctx.beginPath()
+    ctx.moveTo(fist.x, fist.y)
+    ctx.lineTo(fist.fingerX, fist.fingerY)
+    ctx.stroke()
+    circle(ctx, fist.fingerX, fist.fingerY, 8)
+    ctx.fillStyle = '#ff7a59'
+    ctx.fill()
+  }
+
+  if (fist.phase === 'windup') {
+    ctx.strokeStyle = 'rgba(59, 42, 36, 0.55)'
+    ctx.lineWidth = 7
+    ctx.lineCap = 'round'
+    ctx.beginPath()
+    ctx.moveTo(fist.commitX, fist.commitY)
+    ctx.lineTo(fist.x, fist.y)
+    ctx.stroke()
+    ctx.setLineDash([5, 7])
+    ctx.lineWidth = 3
+    ctx.beginPath()
+    ctx.moveTo(fist.x, fist.y)
+    ctx.lineTo(fist.x + fist.aimX * 70, fist.y + fist.aimY * 70)
+    ctx.stroke()
+    ctx.setLineDash([])
+  }
 
   ctx.save()
   ctx.translate(fist.x, fist.y)
   ctx.rotate(angle)
-  ctx.scale(1 + squash * 0.16, 1 - squash * 0.2)
+  ctx.scale(1 + squash * 0.34 + wind * 0.2, Math.max(0.45, 1 - squash * 0.42))
 
   ctx.fillStyle = 'rgba(59, 42, 36, 0.16)'
   ellipse(ctx, 8, m.fistR * 0.75, m.fistR * 0.72, m.fistR * 0.22)
   ctx.fill()
 
-  if (!fist.dragging && !state.seenDrag && state.scene !== 'title' && state.scene !== 'win') {
+  if (fist.phase === 'ready' && !state.seenDrag && state.scene !== 'title') {
     ctx.strokeStyle = 'rgba(255, 122, 89, 0.9)'
     ctx.lineWidth = 4
     ctx.setLineDash([8, 8])
@@ -464,15 +583,17 @@ function drawFist(ctx, state) {
     ctx.setLineDash([])
   }
 
-  if (fist.dragging && speed > 0.4) {
-    ctx.strokeStyle = 'rgba(59, 42, 36, 0.35)'
-    ctx.lineWidth = 4
+  if (fist.phase === 'strike' || (fist.phase === 'drag' && speed > 0.4)) {
+    ctx.strokeStyle = 'rgba(59, 42, 36, 0.45)'
+    ctx.lineWidth = fist.phase === 'strike' ? 5 : 4
     ctx.lineCap = 'round'
     ctx.beginPath()
-    ctx.moveTo(-m.fistR - 8, -10)
-    ctx.lineTo(-m.fistR - 26, -16)
-    ctx.moveTo(-m.fistR - 6, 8)
-    ctx.lineTo(-m.fistR - 24, 14)
+    ctx.moveTo(-m.fistR - 10, -12)
+    ctx.lineTo(-m.fistR - 34, -18)
+    ctx.moveTo(-m.fistR - 8, 8)
+    ctx.lineTo(-m.fistR - 36, 16)
+    ctx.moveTo(-m.fistR - 6, -2)
+    ctx.lineTo(-m.fistR - 28, -2)
     ctx.stroke()
   }
 
@@ -522,17 +643,6 @@ function drawPopups(ctx, state) {
     ctx.strokeText(popup.text, 0, 0)
     ctx.fillText(popup.text, 0, 0)
     ctx.restore()
-  }
-}
-
-function drawConfetti(ctx, state) {
-  for (const bit of state.confetti) {
-    const t = (state.winT * bit.speed + bit.x) % 1
-    const x = bit.x * state.w + Math.sin(state.winT * 3 + bit.x * 8) * 16
-    const y = -20 + t * (state.h + 30)
-    ctx.fillStyle = bit.color
-    roundRect(ctx, x, y, bit.size + 3, bit.size * 1.6, 3)
-    ctx.fill()
   }
 }
 
