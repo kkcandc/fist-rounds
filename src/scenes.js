@@ -11,7 +11,7 @@ export const LUMP_SCENES = new Set(['bed', 'laundry', 'picnic', 'hammock'])
 export const SCENES = {
   dance: {
     label: 'Dance',
-    hint: 'He dances in place. Pull the fist back, then fling it.',
+    hint: 'He dances behind the opening. Line the fist up, then fling it through.',
     pose: 'dance',
     cx: 0.5,
     cy: 0.48,
@@ -21,12 +21,12 @@ export const SCENES = {
   },
   mirror: {
     label: 'Mirror',
-    hint: 'Fling the fist at the real guy. The reflection only bonks.',
+    hint: 'Aim through the opening at the real guy. The reflection only bonks.',
     pose: 'stand',
   },
   bed: {
     label: 'Bed',
-    hint: 'He is a lump under the blanket. Fling the fist at the lump.',
+    hint: 'The lump is behind the pillows. Fling the fist through the gap.',
     pose: 'lump',
     lump: true,
   },
@@ -53,7 +53,7 @@ export const SCENES = {
   },
   window: {
     label: 'Window',
-    hint: 'He is stuck in the window. Fling the fist at him.',
+    hint: 'He is stuck in one pane. Fling the fist through that opening.',
     pose: 'window',
     cx: 0.38,
     cy: 0.46,

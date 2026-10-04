@@ -1,5 +1,6 @@
 import { SCENES } from './scenes.js'
-import { decoyPoint, topInset } from './logic.js'
+import { decoyPoint, windowHole } from './logic.js'
+import { paintRoom, softShadow } from './scenery.js'
 
 const INK = '#3b2a24'
 
@@ -38,7 +39,6 @@ export function drawBackdrop(ctx, state) {
 }
 
 export function drawForeground(ctx, state) {
-  if (state.scene === 'window') drawWindowFrame(ctx, state)
   if (state.scene === 'bike') drawBike(ctx, state)
 }
 
@@ -122,40 +122,21 @@ function wheel(ctx, x, y, r, spin) {
 
 function drawWindowRoom(ctx, state) {
   const { w, h } = state
-  fillRoom(ctx, w, h, '#f6e6d4', '#e7cbb0', 0.78)
   const frame = windowHole(state)
-  roundRect(ctx, frame.x, frame.y, frame.w, frame.h, 12)
-  ctx.fillStyle = '#c9d8f4'
-  ctx.fill()
-  ctx.fillStyle = '#ffe7a3'
-  circle(ctx, frame.x + 28, frame.y + 26, 10)
-  ctx.fill()
-}
-
-function drawWindowFrame(ctx, state) {
-  const frame = windowHole(state)
-  ctx.lineWidth = 10
-  ctx.strokeStyle = '#fff8ef'
-  roundRect(ctx, frame.x, frame.y, frame.w, frame.h, 12)
-  ctx.stroke()
-  ctx.lineWidth = 4
-  ctx.strokeStyle = INK
-  ctx.stroke()
+  fillRoom(ctx, w, h, '#efe4d6', '#d7c3a4', 0.72, {
+    sky: frame,
+    lightX: 0.42,
+  })
+  const sky = ctx.createLinearGradient(frame.x, frame.y, frame.x, frame.y + frame.h)
+  sky.addColorStop(0, '#8eb7d8')
+  sky.addColorStop(0.62, '#d5ebf6')
+  sky.addColorStop(1, '#b7c99a')
+  ctx.fillStyle = sky
+  ctx.fillRect(frame.x, frame.y, frame.w, frame.h)
+  ctx.fillStyle = 'rgba(255, 244, 210, 0.85)'
   ctx.beginPath()
-  ctx.moveTo(frame.x + frame.w * 0.5, frame.y)
-  ctx.lineTo(frame.x + frame.w * 0.5, frame.y + frame.h)
-  ctx.moveTo(frame.x, frame.y + frame.h * 0.55)
-  ctx.lineTo(frame.x + frame.w, frame.y + frame.h * 0.55)
-  ctx.stroke()
-}
-
-function windowHole(state) {
-  return {
-    x: state.w * 0.22,
-    y: topInset(state) + 8,
-    w: state.w * 0.56,
-    h: state.h * 0.36,
-  }
+  ctx.arc(frame.x + 36, frame.y + 28, 12, 0, Math.PI * 2)
+  ctx.fill()
 }
 
 function drawStatueYard(ctx, state) {
@@ -301,14 +282,20 @@ function drawPorch(ctx, state) {
   ctx.stroke()
 }
 
-function fillRoom(ctx, w, h, top, bottom, split) {
-  const wall = ctx.createLinearGradient(0, 0, 0, h)
-  wall.addColorStop(0, top)
-  wall.addColorStop(split, top)
-  wall.addColorStop(split, bottom)
-  wall.addColorStop(1, bottom)
-  ctx.fillStyle = wall
-  ctx.fillRect(0, 0, w, h)
+function fillRoom(ctx, w, h, top, bottom, split, extra = {}) {
+  paintRoom(ctx, w, h, {
+    wall: top,
+    wallLight: top,
+    wallShade: top,
+    floorLight: bottom,
+    floorDark: bottom,
+    plank: 'rgba(70, 44, 24, 0.18)',
+    trim: '#f4efe8',
+    horizon: split,
+    lightX: extra.lightX ?? 0.7,
+    sky: extra.sky,
+  })
+  softShadow(ctx, w * 0.5, h * split + 8, w * 0.28, 14)
 }
 
 function circle(ctx, x, y, r) {

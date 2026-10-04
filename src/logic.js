@@ -40,6 +40,7 @@ export function createState(w, h) {
       y: 0,
       hop: null,
       giggle: 0,
+      yell: 0,
       squash: 0,
       react: 0,
       knockX: 0,
@@ -126,6 +127,63 @@ export function mirrorGeom(state) {
     h: frame.h - pad * 2,
   }
   return { frame, glass, planeX: glass.x }
+}
+
+const FIST_LEFT = new Set(['mirror', 'statue', 'plant'])
+
+export function windowHole(state) {
+  return {
+    x: state.w * 0.22,
+    y: topInset(state) + 8,
+    w: state.w * 0.56,
+    h: state.h * 0.36,
+  }
+}
+
+export function cover(state) {
+  if (!state.anchorX || state.scene === 'title') return { gap: null, solids: [] }
+  if (state.scene === 'window') return windowCover(state)
+  const halfW = 28
+  const halfH = 32
+  const gap = {
+    x: state.anchorX - halfW,
+    y: state.anchorY - halfH,
+    w: halfW * 2,
+    h: halfH * 2 + 6,
+  }
+  const drop = 168
+  const near = FIST_LEFT.has(state.scene)
+    ? { x: -12, y: gap.y - 8, w: Math.max(16, gap.x + 8), h: gap.h + drop }
+    : { x: gap.x + gap.w - 2, y: gap.y - 8, w: state.w - (gap.x + gap.w) + 16, h: gap.h + drop }
+  const far = FIST_LEFT.has(state.scene)
+    ? { x: gap.x + gap.w - 2, y: gap.y - 12, w: 58, h: gap.h + 28 }
+    : { x: gap.x - 60, y: gap.y - 12, w: 58, h: gap.h + 28 }
+  const lintel = { x: gap.x - 16, y: gap.y - 24, w: gap.w + 32, h: 20 }
+  return { gap, solids: [near, far, lintel] }
+}
+
+function windowCover(state) {
+  const frame = windowHole(state)
+  const mullion = 16
+  const midX = frame.x + frame.w * 0.5 - mullion / 2
+  const midY = frame.y + frame.h * 0.55 - mullion / 2
+  const gap = {
+    x: frame.x + 10,
+    y: midY + mullion + 6,
+    w: Math.max(28, midX - frame.x - 14),
+    h: Math.max(36, frame.y + frame.h - (midY + mullion + 6) - 10),
+  }
+  return {
+    gap,
+    solids: [
+      { x: 0, y: frame.y - 10, w: frame.x + 6, h: frame.h + 20 },
+      { x: frame.x + frame.w - 6, y: frame.y - 10, w: state.w - frame.x - frame.w + 12, h: frame.h + 20 },
+      { x: midX, y: frame.y, w: mullion, h: frame.h },
+      { x: frame.x, y: midY, w: frame.w, h: mullion },
+      { x: midX + mullion, y: frame.y, w: Math.max(8, frame.x + frame.w - midX - mullion), h: frame.h },
+      { x: frame.x, y: frame.y, w: Math.max(8, midX - frame.x), h: Math.max(8, midY - frame.y) },
+    ],
+  }
 }
 
 export function bedGeom(state) {
@@ -250,11 +308,32 @@ function placeForScene(state) {
     state.guy.x = clamp(w * spec.cx, arena.minX, arena.maxX)
     state.guy.y = clamp(h * spec.cy, arena.minY, arena.maxY)
   }
+  if (state.scene === 'window') {
+    const gap = windowCover(state).gap
+    state.guy.x = gap.x + gap.w / 2
+    state.guy.y = gap.y + Math.min(34, gap.h * 0.4)
+    state.arena = {
+      minX: gap.x + 8,
+      maxX: gap.x + gap.w - 8,
+      minY: state.guy.y - 12,
+      maxY: state.guy.y + 12,
+    }
+  }
+  state.anchorX = state.guy.x
+  state.anchorY = state.guy.y
+  if (state.scene !== 'title' && state.scene !== 'window') {
+    state.arena = {
+      minX: Math.max(state.arena.minX, state.anchorX - 16),
+      maxX: Math.min(state.arena.maxX, state.anchorX + 16),
+      minY: Math.max(state.arena.minY, state.anchorY - 14),
+      maxY: Math.min(state.arena.maxY, state.anchorY + 14),
+    }
+  }
   state.guy.hop = null
   state.guy.react = 0
   state.guy.squash = 0
-  const spec = SCENES[state.scene]
-  const homeX = state.scene === 'mirror' || spec?.fistX ? (state.scene === 'mirror' ? state.guy.x : w * spec.fistX) : w * 0.5
+  state.guy.yell = 0
+  const homeX = state.scene === 'title' ? w * 0.5 : FIST_LEFT.has(state.scene) ? w * 0.15 : w * 0.85
   state.fist.x = clamp(homeX, m.fistR + 4, w - m.fistR - 4)
   state.fist.y = clamp(h * 0.86, m.fistR + 4, h - m.fistR - 8)
   state.fist.vx = 0
@@ -323,6 +402,7 @@ export function enter(state, scene, where) {
     state.scenePos = where.scenePos
   }
   state.guy.giggle = 0
+  state.guy.yell = 0
   state.guy.squash = 0
   state.guy.hop = null
   state.guy.react = 0
@@ -380,8 +460,11 @@ export function pointerMove(state, x, y, id, time) {
   const desiredY = clamp(y - fist.grabDy, m.fistR, state.h - m.fistR)
   fist.fingerX = x
   fist.fingerY = y
-  const nextX = fist.x + (desiredX - fist.x) * 0.34
-  const nextY = fist.y + (desiredY - fist.y) * 0.34
+  const easedX = fist.x + (desiredX - fist.x) * 0.34
+  const easedY = fist.y + (desiredY - fist.y) * 0.34
+  const blocked = blockedMove(state, fist.x, fist.y, easedX, easedY)
+  const nextX = blocked.x
+  const nextY = blocked.y
   const stretch = Math.hypot(desiredX - nextX, desiredY - nextY)
   fist.squash = clamp(stretch / 90, 0, 0.7)
   fist.vx = (nextX - fist.x) / dt
@@ -402,8 +485,11 @@ export function pointerUp(state, x, y, id) {
   const desiredY = clamp(y - fist.grabDy, m.fistR, state.h - m.fistR)
   fist.fingerX = x
   fist.fingerY = y
-  fist.x += (desiredX - fist.x) * 0.65
-  fist.y += (desiredY - fist.y) * 0.65
+  const easedX = fist.x + (desiredX - fist.x) * 0.65
+  const easedY = fist.y + (desiredY - fist.y) * 0.65
+  const blocked = blockedMove(state, fist.x, fist.y, easedX, easedY)
+  fist.x = blocked.x
+  fist.y = blocked.y
   fist.moved = Math.max(fist.moved, Math.hypot(x - fist.originX, y - fist.originY))
   fist.dragging = false
   fist.pointerId = null
@@ -452,8 +538,7 @@ function commitPunch(state, x, y) {
 }
 
 function reachFor(state, target) {
-  const m = metrics(state)
-  return m.fistR * 0.74 + target.r * 0.9
+  return 12 + target.r * 0.8
 }
 
 function distanceToFirstTarget(state, x, y, ax, ay, maxDist) {
@@ -483,6 +568,7 @@ export function tick(state, dt) {
   stepPunch(state, step)
   if (state.cooldown > 0) state.cooldown = Math.max(0, state.cooldown - step)
   if (state.guy.giggle > 0) state.guy.giggle = Math.max(0, state.guy.giggle - step)
+  if (state.guy.yell > 0) state.guy.yell = Math.max(0, state.guy.yell - step * 0.85)
   if (state.guy.squash > 0) state.guy.squash = Math.max(0, state.guy.squash - step * 1.6)
   if (state.guy.react > 0) state.guy.react = Math.max(0, state.guy.react - step * 1.05)
   if (state.shake > 0) state.shake = Math.max(0, state.shake - step * 1.7)
@@ -553,7 +639,8 @@ function stepPunch(state, step) {
       fist.resolved = true
       fist.x = hit.x
       fist.y = hit.y
-      if (hit.target.id === 'guy' || hit.target.id === 'lump') landPunch(state)
+      if (hit.blocked) blockPunch(state)
+      else if (hit.target.id === 'guy' || hit.target.id === 'lump') landPunch(state)
       else bonk(state)
       return
     }
@@ -620,10 +707,79 @@ function sweepHit(state, x0, y0, x1, y1) {
     const hx = x0 + (x1 - x0) * t
     const hy = y0 + (y1 - y0) * t
     const forward = (hx - fist.strikeFromX) * fist.aimX + (hy - fist.strikeFromY) * fist.aimY
-    if (forward < fist.pull * 0.5) continue
-    if (!best || forward < best.forward) best = { target, x: hx, y: hy, forward }
+    if (forward < fist.pull * 0.45) continue
+    if (!best || t < best.t) best = { target, x: hx, y: hy, forward, t }
+  }
+  const wall = solidAlong(state, x0, y0, x1, y1)
+  if (wall != null && (best == null || wall < best.t)) {
+    return {
+      blocked: true,
+      x: x0 + (x1 - x0) * wall,
+      y: y0 + (y1 - y0) * wall,
+      t: wall,
+    }
   }
   return best
+}
+
+function solidAlong(state, x0, y0, x1, y1) {
+  const pad = 8
+  let best = null
+  for (const rect of cover(state).solids) {
+    if (pointInRect(x0, y0, rect, pad)) continue
+    const t = segmentRectT(x0, y0, x1, y1, rect, pad)
+    if (t == null) continue
+    if (best == null || t < best) best = t
+  }
+  return best
+}
+
+function blockedMove(state, x0, y0, x1, y1) {
+  if (solidAlong(state, x0, y0, x1, y1) == null && !pointHitsSolid(state, x1, y1)) return { x: x1, y: y1 }
+  let lo = 0
+  let hi = 1
+  for (let i = 0; i < 10; i += 1) {
+    const mid = (lo + hi) / 2
+    const x = x0 + (x1 - x0) * mid
+    const y = y0 + (y1 - y0) * mid
+    if (pointHitsSolid(state, x, y)) hi = mid
+    else lo = mid
+  }
+  return { x: x0 + (x1 - x0) * lo, y: y0 + (y1 - y0) * lo }
+}
+
+function pointHitsSolid(state, x, y) {
+  return cover(state).solids.some((rect) => pointInRect(x, y, rect, 8))
+}
+
+function pointInRect(x, y, rect, pad) {
+  return x >= rect.x - pad && x <= rect.x + rect.w + pad && y >= rect.y - pad && y <= rect.y + rect.h + pad
+}
+
+function segmentRectT(x0, y0, x1, y1, rect, pad) {
+  const left = rect.x - pad
+  const top = rect.y - pad
+  const right = rect.x + rect.w + pad
+  const bottom = rect.y + rect.h + pad
+  const dx = x1 - x0
+  const dy = y1 - y0
+  let t0 = 0
+  let t1 = 1
+  const p = [-dx, dx, -dy, dy]
+  const q = [x0 - left, right - x0, y0 - top, bottom - y0]
+  for (let i = 0; i < 4; i += 1) {
+    if (Math.abs(p[i]) < 1e-8) {
+      if (q[i] < 0) return null
+    } else {
+      const r = q[i] / p[i]
+      if (p[i] < 0) {
+        if (r > t1) return null
+        if (r > t0) t0 = r
+      } else if (r < t0) return null
+      else if (r < t1) t1 = r
+    }
+  }
+  return t0
 }
 
 export function currentTargets(state) {
@@ -632,9 +788,9 @@ export function currentTargets(state) {
   const targets = []
   if (state.scene === 'title') return targets
   if (LUMP_SCENES.has(state.scene)) {
-    targets.push({ id: 'lump', x: state.guy.x, y: state.guy.y, r: m.lumpR })
+    targets.push({ id: 'lump', x: state.guy.x, y: state.guy.y, r: m.lumpR * 0.55 })
   } else if (state.scene !== 'title') {
-    targets.push({ id: 'guy', x: visual.x, y: visual.y, r: m.bubR })
+    targets.push({ id: 'guy', x: visual.x, y: visual.y, r: m.bubR * 0.55 })
   }
   const decoy = decoyPoint(state)
   if (decoy) targets.push(decoy)
@@ -651,7 +807,8 @@ function landPunch(state) {
   fist.squash = 1
   state.guy.squash = 1
   state.guy.react = 1
-  state.guy.giggle = 0.8
+  state.guy.giggle = 0
+  state.guy.yell = 1.15
   state.guy.spin = fist.aimX >= 0 ? 1 : -1
   state.guy.knockX = fist.aimX * 78
   state.guy.knockY = fist.aimY * 46
@@ -659,13 +816,23 @@ function landPunch(state) {
   state.lock = IMPACT_HOLD
   state.pending = peekNext(state)
   const labelY = (LUMP_SCENES.has(state.scene) ? state.guy.y : visual.y) - metrics(state).bubR - 36
-  pushPopup(state, 'boop!', visual.x, labelY, 'boop')
+  pushPopup(state, 'Ah!', visual.x, labelY, 'ah')
   state.bursts.push(
     { x: visual.x, y: visual.y, t: 0 },
     { x: visual.x - 16, y: visual.y - 10, t: 0 },
     { x: visual.x + 14, y: visual.y + 6, t: 0 },
   )
-  state.events.push('boop')
+  state.events.push('ah')
+}
+
+function blockPunch(state) {
+  const fist = state.fist
+  fist.phase = 'bonk'
+  fist.phaseT = 0
+  fist.bonkFromX = fist.x
+  fist.bonkFromY = fist.y
+  fist.squash = 1
+  miss(state)
 }
 
 function bonk(state) {
@@ -688,6 +855,7 @@ function miss(state) {
   if (state.guy.hop) return
   const dest = hopDestination(state)
   state.guy.giggle = 0.95
+  state.guy.yell = 0
   state.cooldown = 0.28
   state.guy.hop = {
     t: 0,

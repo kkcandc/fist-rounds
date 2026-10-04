@@ -2,7 +2,7 @@
 
 A silly cartoon game for Kenny and Cora. One little round guy and one big round fist. There is no score.
 
-Pull the fist back with a finger or a mouse, then fling it. A tap does not throw the punch. If the fist reaches him, he reacts and the next scene starts. A miss makes him giggle and hop.
+Pull the fist back with a finger or a mouse, then fling it. A tap does not throw the punch. He is partly hidden behind an opening, so the punch has to be lined up. If it reaches him, he yells and the next scene starts. A miss makes him giggle and hop.
 
 The first three scenes are always:
 

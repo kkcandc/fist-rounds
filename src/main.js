@@ -36,7 +36,7 @@ let audio
 const COPY = {
   title: {
     title: 'Fist Rounds',
-    copy: 'Pull the fist back, then fling it. A punch sends him to a new scene.',
+    copy: 'Line the fist up with the opening, then fling it through. A hit makes him yell.',
     action: 'Play',
   },
 }
@@ -90,10 +90,10 @@ function playSound(kind) {
     } else if (kind === 'swing') {
       blip(240, 0.09, 'sawtooth', 0.02)
       blip(420, 0.06, 'sine', 0.03, 0.04)
-    } else if (kind === 'boop') {
-      blip(110, 0.09, 'sine', 0.07)
-      blip(180, 0.08, 'triangle', 0.05, 0.02)
-      blip(640, 0.12, 'sine', 0.04, 0.05)
+    } else if (kind === 'ah') {
+      blip(380, 0.07, 'triangle', 0.06)
+      blip(260, 0.16, 'sawtooth', 0.035, 0.05)
+      blip(190, 0.14, 'sine', 0.04, 0.1)
     } else if (kind === 'bonk') {
       blip(170, 0.12, 'triangle', 0.06)
       blip(90, 0.16, 'sine', 0.04, 0.03)
@@ -117,10 +117,10 @@ function flushEvents() {
   const latest = names[names.length - 1]
   if (latest === 'giggle') live.textContent = 'Hee hee!'
   else if (latest === 'bonk') live.textContent = 'Bonk!'
-  else if (latest === 'boop') live.textContent = 'Boop!'
+  else if (latest === 'ah') live.textContent = 'Ah!'
   else live.textContent = hintFor(state.scene)
   for (const name of names) {
-    if (name === 'boop' || name === 'bonk' || name === 'giggle' || name === 'swing' || name === 'windup') {
+    if (name === 'ah' || name === 'bonk' || name === 'giggle' || name === 'swing' || name === 'windup') {
       playSound(name)
     }
   }

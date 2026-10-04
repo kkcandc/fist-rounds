@@ -1,6 +1,7 @@
-import { bedGeom, guyVisual, metrics, mirrorGeom, reflectionPoint, topInset } from './logic.js'
+import { bedGeom, cover, guyVisual, metrics, mirrorGeom, reflectionPoint, topInset } from './logic.js'
 import { drawBackdrop, drawDecoyProp, drawForeground } from './rooms.js'
 import { LUMP_SCENES, SCENES } from './scenes.js'
+import { openingShadow, paintRoom, softPad, softShadow, woodPanel } from './scenery.js'
 
 const INK = '#3b2a24'
 const SKIN = '#ffc89a'
@@ -38,6 +39,7 @@ export function draw(ctx, state) {
   }
 
   drawForeground(ctx, state)
+  drawSlot(ctx, state)
   drawBursts(ctx, state)
   drawFist(ctx, state)
   drawPopups(ctx, state)
@@ -64,29 +66,28 @@ function drawBubble(ctx, point, radius) {
 
 function drawDanceRoom(ctx, state) {
   const { w, h } = state
-  const sky = ctx.createLinearGradient(0, 0, 0, h)
-  sky.addColorStop(0, '#bfe6ff')
-  sky.addColorStop(0.42, '#ffd4ef')
-  sky.addColorStop(0.42, '#f3b56a')
-  sky.addColorStop(1, '#e09245')
-  ctx.fillStyle = sky
-  ctx.fillRect(0, 0, w, h)
-
-  const spot = ctx.createRadialGradient(w * 0.5, h * 0.46, 10, w * 0.5, h * 0.46, w * 0.48)
-  spot.addColorStop(0, 'rgba(255,255,255,0.62)')
-  spot.addColorStop(1, 'rgba(255,255,255,0)')
-  ctx.fillStyle = spot
-  ctx.fillRect(0, 0, w, h * 0.5)
-
-  ctx.strokeStyle = 'rgba(255,255,255,0.45)'
+  paintRoom(ctx, w, h, {
+    wall: '#efe2d2',
+    wallLight: '#f7efe6',
+    wallShade: '#d9c3ae',
+    floorLight: '#c4894f',
+    floorDark: '#8d5a32',
+    plank: 'rgba(92, 52, 28, 0.28)',
+    trim: '#f3eadf',
+    lightX: 0.28,
+    horizon: 0.58,
+    sky: { x: w * 0.08, y: topInset(state) - 10, w: w * 0.28, h: h * 0.16 },
+  })
+  softShadow(ctx, w * 0.5, h * 0.62, w * 0.22, 18)
+  roundRect(ctx, w * 0.28, h * 0.58, w * 0.44, 22, 10)
+  const rug = ctx.createLinearGradient(0, h * 0.58, 0, h * 0.62)
+  rug.addColorStop(0, '#9c3d3a')
+  rug.addColorStop(1, '#7a2e2c')
+  ctx.fillStyle = rug
+  ctx.fill()
+  ctx.strokeStyle = 'rgba(255, 220, 170, 0.35)'
   ctx.lineWidth = 3
-  ctx.beginPath()
-  ctx.moveTo(16, h * 0.42)
-  ctx.lineTo(w - 16, h * 0.42)
   ctx.stroke()
-
-  drawStringLights(ctx, state)
-  drawNotes(ctx, state)
 }
 
 function drawStringLights(ctx, state) {
@@ -127,17 +128,18 @@ function drawNotes(ctx, state) {
 
 function drawMirrorRoom(ctx, state) {
   const { w, h } = state
-  const wall = ctx.createLinearGradient(0, 0, 0, h)
-  wall.addColorStop(0, '#e5f6ff')
-  wall.addColorStop(0.72, '#f7fbff')
-  wall.addColorStop(0.72, '#e6c8a4')
-  wall.addColorStop(1, '#d2ad86')
-  ctx.fillStyle = wall
-  ctx.fillRect(0, 0, w, h)
-
-  ctx.fillStyle = '#f2d7b6'
-  ellipse(ctx, w * 0.24, h * 0.7, w * 0.16, 16)
-  ctx.fill()
+  paintRoom(ctx, w, h, {
+    wall: '#e7eef2',
+    wallLight: '#f8fbfc',
+    wallShade: '#c5d0d6',
+    floorLight: '#d7b48a',
+    floorDark: '#a67c52',
+    plank: 'rgba(90, 58, 32, 0.22)',
+    trim: '#f7f4ef',
+    lightX: 0.74,
+    horizon: 0.7,
+  })
+  softShadow(ctx, w * 0.22, h * 0.72, 46, 12)
 
   const mirror = mirrorGeom(state)
   const wobble = Math.sin(state.time * 34) * state.mirrorWobble * 0.05
@@ -188,15 +190,18 @@ function drawReflection(ctx, state) {
 
 function drawBedroom(ctx, state) {
   const { w, h } = state
-  const wall = ctx.createLinearGradient(0, 0, 0, h)
-  wall.addColorStop(0, '#f8dcc8')
-  wall.addColorStop(0.62, '#f3c9b0')
-  wall.addColorStop(0.62, '#e7b489')
-  wall.addColorStop(1, '#d59a6e')
-  ctx.fillStyle = wall
-  ctx.fillRect(0, 0, w, h)
-
-  drawWindow(ctx, state)
+  paintRoom(ctx, w, h, {
+    wall: '#f0d2be',
+    wallLight: '#f8e4d4',
+    wallShade: '#e0b79a',
+    floorLight: '#c89262',
+    floorDark: '#8f5b38',
+    plank: 'rgba(90, 48, 24, 0.2)',
+    trim: '#f6efe6',
+    lightX: 0.82,
+    horizon: 0.72,
+    sky: { x: w * 0.08, y: topInset(state) + 4, w: 78, h: 64 },
+  })
   drawLamp(ctx, state)
   drawBed(ctx, state)
 }
@@ -282,11 +287,15 @@ function drawBed(ctx, state) {
   ctx.fill()
   ctx.stroke()
 
+  const blanket = ctx.createLinearGradient(bed.blanket.x, bed.blanket.y, bed.blanket.x, bed.blanket.y + bed.blanket.h)
+  blanket.addColorStop(0, '#8eafd8')
+  blanket.addColorStop(0.4, '#6d92c4')
+  blanket.addColorStop(1, '#4f73a4')
   roundRect(ctx, bed.blanket.x, bed.blanket.y, bed.blanket.w, bed.blanket.h, 18)
-  ctx.fillStyle = '#6f97e4'
+  ctx.fillStyle = blanket
   ctx.fill()
-  ctx.strokeStyle = INK
-  ctx.lineWidth = 4
+  ctx.strokeStyle = 'rgba(30, 40, 60, 0.35)'
+  ctx.lineWidth = 3
   ctx.stroke()
 
   ctx.strokeStyle = 'rgba(255,255,255,0.45)'
@@ -334,12 +343,13 @@ function drawGuy(ctx, state, point, options) {
   const arm = dancing ? Math.sin(beat) : Math.sin(state.time * 2) * 0.25
   const sway = dancing ? Math.sin(state.time * 3) * 0.08 : pose === 'couch' ? Math.sin(state.time * 6) * 0.05 : 0
   const squash = options.ghost ? 0 : state.guy.squash
-  const giggle = state.guy.giggle > 0 && !options.ghost
+  const yell = state.guy.yell > 0 && !options.ghost
+  const giggle = state.guy.giggle > 0 && !options.ghost && !yell
   const spin = Math.sin(Math.min(1, state.guy.react) * Math.PI) * state.guy.spin * 1.25
 
   ctx.save()
   ctx.translate(point.x, point.y)
-  ctx.rotate(sway + spin + (giggle ? Math.sin(state.time * 26) * 0.06 : 0))
+  ctx.rotate(sway + spin + (giggle ? Math.sin(state.time * 26) * 0.06 : 0) + (yell ? Math.sin(state.time * 34) * 0.1 : 0))
   ctx.scale(options.flip ? -1 : 1, 1)
   ctx.scale(1 + squash * 0.28, 1 - squash * 0.38)
 
@@ -388,19 +398,32 @@ function drawGuy(ctx, state, point, options) {
 
   const eyeY = -m.bubR * 0.12
   const look = state.scene === 'mirror' && !options.ghost ? 3 : 0
-  drawEye(ctx, -m.bubR * 0.24 + look, eyeY, m.bubR, giggle)
-  drawEye(ctx, m.bubR * 0.24 + look, eyeY, m.bubR, giggle)
+  if (yell) {
+    drawBrow(ctx, -m.bubR * 0.24, eyeY - m.bubR * 0.22, m.bubR, -1)
+    drawBrow(ctx, m.bubR * 0.24, eyeY - m.bubR * 0.22, m.bubR, 1)
+  }
+  drawEye(ctx, -m.bubR * 0.24 + look, eyeY, m.bubR, giggle, yell)
+  drawEye(ctx, m.bubR * 0.24 + look, eyeY, m.bubR, giggle, yell)
 
   ctx.strokeStyle = INK
   ctx.lineWidth = 3
   ctx.lineCap = 'round'
   ctx.beginPath()
-  if (giggle || options.cheer) {
+  if (yell) {
+    ellipse(ctx, 0, m.bubR * 0.34, m.bubR * 0.22, m.bubR * 0.28)
+    ctx.fillStyle = '#6a2a32'
+    ctx.fill()
+    ctx.stroke()
+    ellipse(ctx, 0, m.bubR * 0.28, m.bubR * 0.1, m.bubR * 0.08)
+    ctx.fillStyle = '#f2b3b0'
+    ctx.fill()
+  } else if (giggle || options.cheer) {
     ctx.arc(0, m.bubR * 0.18, m.bubR * 0.28, 0.15, Math.PI - 0.15)
+    ctx.stroke()
   } else {
     ctx.arc(0, m.bubR * 0.16, m.bubR * 0.22, 0.25, Math.PI - 0.25)
+    ctx.stroke()
   }
-  ctx.stroke()
 
   ctx.fillStyle = '#53b6c9'
   circle(ctx, m.bubR * 0.34, -m.bubR * 0.46, m.bubR * 0.1)
@@ -444,7 +467,29 @@ function drawHair(ctx, x, y, r) {
   ctx.restore()
 }
 
-function drawEye(ctx, x, y, r, giggle) {
+function drawBrow(ctx, x, y, r, side) {
+  ctx.strokeStyle = INK
+  ctx.lineWidth = 3
+  ctx.lineCap = 'round'
+  ctx.beginPath()
+  ctx.moveTo(x - r * 0.16, y + side * r * 0.04)
+  ctx.lineTo(x + r * 0.16, y - side * r * 0.08)
+  ctx.stroke()
+}
+
+function drawEye(ctx, x, y, r, giggle, yell) {
+  if (yell) {
+    circle(ctx, x, y, r * 0.16)
+    ctx.fillStyle = '#fff'
+    ctx.fill()
+    ctx.lineWidth = 2
+    ctx.strokeStyle = INK
+    ctx.stroke()
+    circle(ctx, x, y + r * 0.02, r * 0.07)
+    ctx.fillStyle = INK
+    ctx.fill()
+    return
+  }
   if (giggle) {
     ctx.strokeStyle = INK
     ctx.lineWidth = 3
@@ -493,6 +538,46 @@ function drawArm(ctx, side, swing, r, up) {
   ctx.lineWidth = 3
   ctx.strokeStyle = INK
   ctx.stroke()
+}
+
+function drawSlot(ctx, state) {
+  const { gap, solids } = cover(state)
+  if (!gap) return
+  if (state.scene === 'window') {
+    drawWindowSlot(ctx, state, solids, gap)
+    return
+  }
+  const wood = { light: '#c9955c', mid: '#8b5a34', dark: '#684026', edge: '#3a2416' }
+  const cloth = { light: '#f6f3ee', dark: '#d7dde6' }
+  for (const rect of solids) {
+    if (state.scene === 'bed' || state.scene === 'couch' || state.scene === 'hammock') softPad(ctx, rect, cloth)
+    else if (state.scene === 'laundry' || state.scene === 'picnic') {
+      woodPanel(ctx, rect, { light: '#e4c48a', mid: '#c49a52', dark: '#a07838', edge: '#6a4c22' })
+    } else woodPanel(ctx, rect, wood)
+  }
+  openingShadow(ctx, gap)
+}
+
+function drawWindowSlot(ctx, state, solids, gap) {
+  const trim = { light: '#fbf7f0', mid: '#e7dfd2', dark: '#cfc3ae', edge: '#5a5046' }
+  solids.forEach((rect, index) => {
+    if (index === 4 || index === 5) {
+      const glass = ctx.createLinearGradient(rect.x, rect.y, rect.x + rect.w, rect.y + rect.h)
+      glass.addColorStop(0, 'rgba(190, 214, 196, 0.55)')
+      glass.addColorStop(1, 'rgba(150, 186, 206, 0.4)')
+      ctx.fillStyle = glass
+      ctx.fillRect(rect.x, rect.y, rect.w, rect.h)
+      ctx.strokeStyle = 'rgba(255,255,255,0.45)'
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.moveTo(rect.x + 8, rect.y + 10)
+      ctx.lineTo(rect.x + rect.w * 0.45, rect.y + 10)
+      ctx.stroke()
+      return
+    }
+    woodPanel(ctx, rect, trim)
+  })
+  openingShadow(ctx, gap)
 }
 
 function drawBursts(ctx, state) {
@@ -639,7 +724,9 @@ function drawPopups(ctx, state) {
     ctx.translate(popup.x, popup.y - rise)
     ctx.lineWidth = 6
     ctx.strokeStyle = INK
-    ctx.fillStyle = popup.kind === 'bonk' ? '#4aa3df' : popup.kind === 'giggle' ? '#e45d9a' : '#ff7a59'
+    const shout = popup.kind === 'ah'
+    if (shout) ctx.scale(1.15, 1.15)
+    ctx.fillStyle = popup.kind === 'bonk' ? '#4aa3df' : popup.kind === 'giggle' ? '#e45d9a' : shout ? '#d63a32' : '#ff7a59'
     ctx.strokeText(popup.text, 0, 0)
     ctx.fillText(popup.text, 0, 0)
     ctx.restore()
