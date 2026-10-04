@@ -1,7 +1,7 @@
 import { bedGeom, cover, guyVisual, metrics, mirrorGeom, reflectionPoint, topInset } from './logic.js'
 import { drawBackdrop, drawDecoyProp, drawForeground } from './rooms.js'
 import { LUMP_SCENES, SCENES } from './scenes.js'
-import { openingShadow, paintRoom, softPad, softShadow, woodPanel } from './scenery.js'
+import { cabinet, drawDollhouse, frontWall, houseBox, jamb, miniLamp, rug } from './scenery.js'
 
 const INK = '#3b2a24'
 const SKIN = '#ffc89a'
@@ -65,29 +65,34 @@ function drawBubble(ctx, point, radius) {
 }
 
 function drawDanceRoom(ctx, state) {
-  const { w, h } = state
-  paintRoom(ctx, w, h, {
-    wall: '#efe2d2',
-    wallLight: '#f7efe6',
-    wallShade: '#d9c3ae',
-    floorLight: '#c4894f',
+  const { w } = state
+  drawDollhouse(ctx, state, {
     floorDark: '#8d5a32',
+    floorLight: '#d7a36a',
+    wallLight: '#fbf6ee',
+    wall: '#f0e4d4',
+    wallShade: '#d8c4ae',
+    trim: '#efe4d4',
     plank: 'rgba(92, 52, 28, 0.28)',
-    trim: '#f3eadf',
-    lightX: 0.28,
-    horizon: 0.58,
-    sky: { x: w * 0.08, y: topInset(state) - 10, w: w * 0.28, h: h * 0.16 },
   })
-  softShadow(ctx, w * 0.5, h * 0.62, w * 0.22, 18)
-  roundRect(ctx, w * 0.28, h * 0.58, w * 0.44, 22, 10)
-  const rug = ctx.createLinearGradient(0, h * 0.58, 0, h * 0.62)
-  rug.addColorStop(0, '#9c3d3a')
-  rug.addColorStop(1, '#7a2e2c')
-  ctx.fillStyle = rug
-  ctx.fill()
-  ctx.strokeStyle = 'rgba(255, 220, 170, 0.35)'
-  ctx.lineWidth = 3
-  ctx.stroke()
+  const box = houseBox(state)
+  const depth = box.frontY - box.backY
+  rug(ctx, w * 0.22, box.backY + depth * 0.38, w * 0.56, 52, '#8d3532')
+  cabinet(ctx, 34, box.backY + 6, Math.min(128, w * 0.34), 26, 48, {
+    light: '#9ebbe0',
+    face: '#6d92c4',
+    top: '#c5d7ef',
+    side: '#4f73a4',
+    edge: 'rgba(40, 55, 80, 0.4)',
+  })
+  cabinet(ctx, w * 0.62, box.backY + 14, 54, 16, 32, {
+    light: '#f0d7a2',
+    face: '#c9955c',
+    top: '#f6e6c4',
+    side: '#a07838',
+    edge: 'rgba(80, 50, 20, 0.4)',
+  })
+  miniLamp(ctx, w * 0.78, box.backY + 2)
 }
 
 function drawStringLights(ctx, state) {
@@ -127,19 +132,25 @@ function drawNotes(ctx, state) {
 }
 
 function drawMirrorRoom(ctx, state) {
-  const { w, h } = state
-  paintRoom(ctx, w, h, {
-    wall: '#e7eef2',
-    wallLight: '#f8fbfc',
-    wallShade: '#c5d0d6',
-    floorLight: '#d7b48a',
+  const { w } = state
+  drawDollhouse(ctx, state, {
     floorDark: '#a67c52',
-    plank: 'rgba(90, 58, 32, 0.22)',
+    floorLight: '#e4c79a',
+    wallLight: '#f8fbfc',
+    wall: '#e7eef2',
+    wallShade: '#c5d0d6',
     trim: '#f7f4ef',
-    lightX: 0.74,
-    horizon: 0.7,
+    plank: 'rgba(90, 58, 32, 0.22)',
   })
-  softShadow(ctx, w * 0.22, h * 0.72, 46, 12)
+  const box = houseBox(state)
+  cabinet(ctx, 28, box.backY + 12, 70, 18, 28, {
+    light: '#f4f1ea',
+    face: '#e4ddd2',
+    top: '#fff',
+    side: '#cfc6ba',
+    edge: 'rgba(70, 60, 50, 0.35)',
+  })
+  rug(ctx, w * 0.08, box.backY + (box.frontY - box.backY) * 0.42, w * 0.28, 36, '#6e8fbf')
 
   const mirror = mirrorGeom(state)
   const wobble = Math.sin(state.time * 34) * state.mirrorWobble * 0.05
@@ -148,14 +159,26 @@ function drawMirrorRoom(ctx, state) {
   ctx.rotate(wobble)
   ctx.translate(-(mirror.frame.x + mirror.frame.w / 2), -(mirror.frame.y + mirror.frame.h / 2))
 
+  const skew = 10
+  ctx.beginPath()
+  ctx.moveTo(mirror.frame.x + mirror.frame.w, mirror.frame.y)
+  ctx.lineTo(mirror.frame.x + mirror.frame.w + skew, mirror.frame.y - 8)
+  ctx.lineTo(mirror.frame.x + mirror.frame.w + skew, mirror.frame.y + mirror.frame.h - 8)
+  ctx.lineTo(mirror.frame.x + mirror.frame.w, mirror.frame.y + mirror.frame.h)
+  ctx.closePath()
+  ctx.fillStyle = '#9aa8b5'
+  ctx.fill()
   roundRect(ctx, mirror.frame.x, mirror.frame.y, mirror.frame.w, mirror.frame.h, 28)
-  ctx.fillStyle = '#f4f7fb'
+  const framePaint = ctx.createLinearGradient(mirror.frame.x, mirror.frame.y, mirror.frame.x, mirror.frame.y + mirror.frame.h)
+  framePaint.addColorStop(0, '#f7f4ef')
+  framePaint.addColorStop(1, '#c5d0dc')
+  ctx.fillStyle = framePaint
   ctx.fill()
   ctx.lineWidth = 10
-  ctx.strokeStyle = '#c5d0dc'
+  ctx.strokeStyle = '#d5dde6'
   ctx.stroke()
-  ctx.lineWidth = 4
-  ctx.strokeStyle = INK
+  ctx.lineWidth = 3
+  ctx.strokeStyle = '#6d7c88'
   ctx.stroke()
 
   const glass = ctx.createLinearGradient(mirror.glass.x, mirror.glass.y, mirror.glass.x + mirror.glass.w, mirror.glass.y)
@@ -189,20 +212,24 @@ function drawReflection(ctx, state) {
 }
 
 function drawBedroom(ctx, state) {
-  const { w, h } = state
-  paintRoom(ctx, w, h, {
-    wall: '#f0d2be',
-    wallLight: '#f8e4d4',
-    wallShade: '#e0b79a',
-    floorLight: '#c89262',
+  drawDollhouse(ctx, state, {
     floorDark: '#8f5b38',
-    plank: 'rgba(90, 48, 24, 0.2)',
+    floorLight: '#d7a36e',
+    wallLight: '#f8e4d4',
+    wall: '#f0d2be',
+    wallShade: '#e0b79a',
     trim: '#f6efe6',
-    lightX: 0.82,
-    horizon: 0.72,
-    sky: { x: w * 0.08, y: topInset(state) + 4, w: 78, h: 64 },
+    plank: 'rgba(90, 48, 24, 0.22)',
   })
-  drawLamp(ctx, state)
+  const bed = bedGeom(state)
+  miniLamp(ctx, bed.frame.x + 36, bed.frame.y - 8)
+  cabinet(ctx, bed.frame.x + bed.frame.w - 78, bed.frame.y + 8, 52, 16, 30, {
+    light: '#f0d7a2',
+    face: '#c9955c',
+    top: '#f6e6c4',
+    side: '#a07838',
+    edge: 'rgba(80, 50, 20, 0.4)',
+  })
   drawBed(ctx, state)
 }
 
@@ -259,21 +286,63 @@ function drawLamp(ctx, state) {
 
 function drawBed(ctx, state) {
   const bed = bedGeom(state)
-  roundRect(ctx, bed.frame.x, bed.frame.y, bed.frame.w, bed.frame.h, 22)
-  ctx.fillStyle = '#d08a45'
+  const skew = 12
+  ctx.fillStyle = 'rgba(40, 22, 12, 0.22)'
+  ellipse(ctx, bed.frame.x + bed.frame.w / 2, bed.frame.y + bed.frame.h + 6, bed.frame.w * 0.46, 12)
   ctx.fill()
-  ctx.lineWidth = 4
-  ctx.strokeStyle = INK
+
+  ctx.beginPath()
+  ctx.moveTo(bed.frame.x + bed.frame.w, bed.frame.y)
+  ctx.lineTo(bed.frame.x + bed.frame.w + skew, bed.frame.y - 14)
+  ctx.lineTo(bed.frame.x + bed.frame.w + skew, bed.frame.y + bed.frame.h - 10)
+  ctx.lineTo(bed.frame.x + bed.frame.w, bed.frame.y + bed.frame.h)
+  ctx.closePath()
+  ctx.fillStyle = '#a56a32'
+  ctx.fill()
+
+  ctx.beginPath()
+  ctx.moveTo(bed.frame.x, bed.frame.y)
+  ctx.lineTo(bed.frame.x + 8, bed.frame.y - 14)
+  ctx.lineTo(bed.frame.x + bed.frame.w + skew, bed.frame.y - 14)
+  ctx.lineTo(bed.frame.x + bed.frame.w, bed.frame.y)
+  ctx.closePath()
+  ctx.fillStyle = '#e2b06a'
+  ctx.fill()
+  ctx.strokeStyle = 'rgba(90, 50, 20, 0.35)'
+  ctx.lineWidth = 1
   ctx.stroke()
 
-  roundRect(ctx, bed.frame.x + 8, bed.frame.y - 28, 22, 46, 8)
+  const wood = ctx.createLinearGradient(bed.frame.x, bed.frame.y, bed.frame.x, bed.frame.y + bed.frame.h)
+  wood.addColorStop(0, '#e0a15a')
+  wood.addColorStop(1, '#b87438')
+  roundRect(ctx, bed.frame.x, bed.frame.y, bed.frame.w, bed.frame.h, 18)
+  ctx.fillStyle = wood
+  ctx.fill()
+  ctx.lineWidth = 2
+  ctx.strokeStyle = '#8a5428'
+  ctx.stroke()
+
+  roundRect(ctx, bed.frame.x + 10, bed.frame.y - 34, 28, 52, 6)
   ctx.fillStyle = '#c47b38'
   ctx.fill()
   ctx.stroke()
+  ctx.beginPath()
+  ctx.moveTo(bed.frame.x + 38, bed.frame.y - 34)
+  ctx.lineTo(bed.frame.x + 46, bed.frame.y - 46)
+  ctx.lineTo(bed.frame.x + 46, bed.frame.y + 10)
+  ctx.lineTo(bed.frame.x + 38, bed.frame.y + 18)
+  ctx.closePath()
+  ctx.fillStyle = '#a56a32'
+  ctx.fill()
 
   roundRect(ctx, bed.mattress.x, bed.mattress.y, bed.mattress.w, bed.mattress.h, 16)
-  ctx.fillStyle = '#fff6ea'
+  const sheet = ctx.createLinearGradient(bed.mattress.x, bed.mattress.y, bed.mattress.x, bed.mattress.y + bed.mattress.h)
+  sheet.addColorStop(0, '#fffaf3')
+  sheet.addColorStop(1, '#f0e2d0')
+  ctx.fillStyle = sheet
   ctx.fill()
+  ctx.strokeStyle = 'rgba(90, 60, 40, 0.28)'
+  ctx.lineWidth = 1.5
   ctx.stroke()
 
   const pillow = {
@@ -544,40 +613,47 @@ function drawSlot(ctx, state) {
   const { gap, solids } = cover(state)
   if (!gap) return
   if (state.scene === 'window') {
-    drawWindowSlot(ctx, state, solids, gap)
+    drawWindowSlot(ctx, solids, gap)
     return
   }
-  const wood = { light: '#c9955c', mid: '#8b5a34', dark: '#684026', edge: '#3a2416' }
-  const cloth = { light: '#f6f3ee', dark: '#d7dde6' }
-  for (const rect of solids) {
-    if (state.scene === 'bed' || state.scene === 'couch' || state.scene === 'hammock') softPad(ctx, rect, cloth)
-    else if (state.scene === 'laundry' || state.scene === 'picnic') {
-      woodPanel(ctx, rect, { light: '#e4c48a', mid: '#c49a52', dark: '#a07838', edge: '#6a4c22' })
-    } else woodPanel(ctx, rect, wood)
-  }
-  openingShadow(ctx, gap)
+  const paint = wallPaint(state.scene)
+  for (const rect of solids) frontWall(ctx, rect, paint)
+  jamb(ctx, gap)
 }
 
-function drawWindowSlot(ctx, state, solids, gap) {
-  const trim = { light: '#fbf7f0', mid: '#e7dfd2', dark: '#cfc3ae', edge: '#5a5046' }
+function wallPaint(scene) {
+  if (scene === 'mirror') return { top: '#f7fafc', light: '#eef3f6', dark: '#c5d0d6', edge: '#7a8a94' }
+  if (scene === 'bed') return { top: '#f8e6d6', light: '#f3d8c4', dark: '#e0b79a', edge: '#a07858' }
+  if (scene === 'laundry') return { top: '#f8f1e6', light: '#f4e7d4', dark: '#e0d0b4', edge: '#8a7048' }
+  if (scene === 'statue' || scene === 'bubbles' || scene === 'picnic') {
+    return { top: '#e7f3d4', light: '#d7e8bc', dark: '#b7c99a', edge: '#6a7848' }
+  }
+  if (scene === 'couch') return { top: '#f8ead4', light: '#f3ddc0', dark: '#e0c49a', edge: '#8a6840' }
+  if (scene === 'hammock') return { top: '#f6e2c4', light: '#edd0a4', dark: '#d2ae78', edge: '#7a5a32' }
+  if (scene === 'plant') return { top: '#f4f7ea', light: '#e7eedc', dark: '#d5d8c4', edge: '#7a8460' }
+  return { top: '#f6efe4', light: '#f0e4d4', dark: '#d9cbb6', edge: '#8d7560' }
+}
+
+function drawWindowSlot(ctx, solids, gap) {
+  const trim = { top: '#fbf7f0', light: '#f4efe6', dark: '#d5cbb8', edge: '#6a5c4e' }
   solids.forEach((rect, index) => {
     if (index === 4 || index === 5) {
       const glass = ctx.createLinearGradient(rect.x, rect.y, rect.x + rect.w, rect.y + rect.h)
-      glass.addColorStop(0, 'rgba(190, 214, 196, 0.55)')
-      glass.addColorStop(1, 'rgba(150, 186, 206, 0.4)')
+      glass.addColorStop(0, 'rgba(214, 232, 220, 0.42)')
+      glass.addColorStop(1, 'rgba(168, 198, 214, 0.28)')
       ctx.fillStyle = glass
       ctx.fillRect(rect.x, rect.y, rect.w, rect.h)
-      ctx.strokeStyle = 'rgba(255,255,255,0.45)'
+      ctx.strokeStyle = 'rgba(255,255,255,0.55)'
       ctx.lineWidth = 2
       ctx.beginPath()
-      ctx.moveTo(rect.x + 8, rect.y + 10)
-      ctx.lineTo(rect.x + rect.w * 0.45, rect.y + 10)
+      ctx.moveTo(rect.x + 8, rect.y + 12)
+      ctx.lineTo(rect.x + rect.w * 0.4, rect.y + 12)
       ctx.stroke()
       return
     }
-    woodPanel(ctx, rect, trim)
+    frontWall(ctx, rect, trim)
   })
-  openingShadow(ctx, gap)
+  jamb(ctx, gap)
 }
 
 function drawBursts(ctx, state) {
