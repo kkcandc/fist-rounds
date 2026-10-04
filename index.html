@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#ffe7c2" />
+    <meta
+      name="description"
+      content="Fist Rounds is a silly cartoon game for Kenny and Cora. Drag the big fist through three short scenes."
+    />
+    <title>Fist Rounds</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="game" width="390" height="844" aria-hidden="true"></canvas>
+      <header>
+        <p class="kicker">for Kenny &amp; Cora</p>
+        <h1>Fist Rounds</h1>
+        <p id="hint"></p>
+        <ol id="rounds">
+          <li data-scene="dance">Dance</li>
+          <li data-scene="mirror">Mirror</li>
+          <li data-scene="bed">Bed</li>
+        </ol>
+      </header>
+      <div id="card">
+        <h2 id="card-title">Fist Rounds</h2>
+        <p id="card-copy">
+          Drag the big round fist with your finger. A punch on the little guy
+          starts the next scene.
+        </p>
+        <button id="card-action" type="button">Play</button>
+      </div>
+      <p id="live" class="sr-only" aria-live="polite"></p>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
